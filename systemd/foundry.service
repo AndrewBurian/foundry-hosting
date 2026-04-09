@@ -1,0 +1,25 @@
+# foundry.service
+# STUB — copy your existing service file here and adjust as needed.
+# Deploy with:
+#   sudo cp systemd/foundry.service /etc/systemd/system/foundry.service
+#   sudo systemctl daemon-reload
+
+[Unit]
+Description=Foundry Virtual Tabletop
+Documentation=https://foundryvtt.com
+After=network.target
+
+[Service]
+Type=simple
+User=foundry
+Group=foundry
+WorkingDirectory=/opt/foundry
+ExecStart=/usr/bin/node /opt/foundry/resources/app/main.js --dataPath=/srv/foundry
+Restart=on-failure
+RestartSec=5s
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=foundryvtt
+
+[Install]
+WantedBy=multi-user.target
