@@ -55,6 +55,9 @@ tar -xJf "${TMP_DIR}/${TARBALL}" -C "${TMP_EXTRACT}" --strip-components=1
 sudo mkdir -p "${INSTALL_PREFIX}"
 sudo cp -a "${TMP_EXTRACT}/." "${INSTALL_PREFIX}/"
 
+echo "==> Symlinking /usr/local/bin/node${NODE_MAJOR}..."
+sudo ln -sfn "${INSTALL_PREFIX}/bin/node" "/usr/local/bin/node${NODE_MAJOR}"
+
 # ── Done ──────────────────────────────────────────────────────────────────────
 
 echo ""
@@ -62,5 +65,6 @@ echo "==> Installed:"
 "${INSTALL_PREFIX}/bin/node" --version
 "${INSTALL_PREFIX}/bin/npm" --version
 echo ""
-echo "    Binary path for systemd: ${INSTALL_PREFIX}/bin/node"
+echo "    Versioned binary: node${NODE_MAJOR} ($(node${NODE_MAJOR} --version))"
+echo "    Full path for systemd: ${INSTALL_PREFIX}/bin/node"
 echo "    Existing system node is unchanged: $(node --version 2>/dev/null || echo '(none)')"
