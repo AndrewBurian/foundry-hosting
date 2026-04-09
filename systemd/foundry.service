@@ -14,7 +14,7 @@ Type=simple
 User=foundry
 Group=foundry
 WorkingDirectory=/opt/foundry
-ExecStart=/usr/bin/node /opt/foundry/resources/app/main.js --dataPath=/srv/foundry
+ExecStart=/usr/local/node-22/bin/node /opt/foundry/resources/app/main.js --dataPath=/srv/foundry
 Restart=on-failure
 RestartSec=5s
 StandardOutput=journal

@@ -1,22 +1,66 @@
 #!/usr/bin/env bash
 # install-node-lts.sh
-# Installs Node.js 22 LTS system-wide via the NodeSource apt repository.
-# Must be run as a user with sudo access.
+# Installs the latest Node.js 22 LTS as a standalone binary to
+# /usr/local/node-22/. Does NOT touch or replace any existing Node
+# installation, so Foundry 13 continues to use whatever node it currently has.
+#
+# The Foundry 14 systemd service references /usr/local/node-22/bin/node
+# directly, so no PATH changes are needed.
 set -euo pipefail
 
 NODE_MAJOR=22
+INSTALL_PREFIX="/usr/local/node-${NODE_MAJOR}"
+ARCH="linux-x64"
 
-echo "==> Installing Node.js ${NODE_MAJOR}.x LTS via NodeSource..."
+# ── Resolve latest patch version ──────────────────────────────────────────────
 
-sudo apt-get update -qq
-sudo apt-get install -y curl ca-certificates
+echo "==> Fetching latest Node.js ${NODE_MAJOR}.x LTS version..."
+NODE_VERSION=$(curl -fsSL "https://nodejs.org/dist/index.json" \
+    | python3 -c "
+import sys, json
+releases = json.load(sys.stdin)
+latest = next(
+    r['version'] for r in releases
+    if r['lts'] and r['version'].startswith('v${NODE_MAJOR}.')
+)
+print(latest)
+")
 
-# Add the NodeSource apt repository and signing key
-curl -fsSL "https://deb.nodesource.com/setup_${NODE_MAJOR}.x" | sudo -E bash -
+echo "==> Latest: ${NODE_VERSION}"
 
-sudo apt-get install -y nodejs
+TARBALL="node-${NODE_VERSION}-${ARCH}.tar.xz"
+DOWNLOAD_URL="https://nodejs.org/dist/${NODE_VERSION}/${TARBALL}"
+TMP_DIR=$(mktemp -d)
+
+cleanup() { rm -rf "${TMP_DIR}"; }
+trap cleanup EXIT
+
+# ── Download and verify ───────────────────────────────────────────────────────
+
+echo "==> Downloading ${TARBALL}..."
+curl -L --progress-bar -o "${TMP_DIR}/${TARBALL}" "${DOWNLOAD_URL}"
+
+echo "==> Verifying checksum..."
+curl -fsSL "${DOWNLOAD_URL}.sha256" -o "${TMP_DIR}/${TARBALL}.sha256"
+# The .sha256 file is just the hash, no filename — build a checksum line manually
+echo "$(cat "${TMP_DIR}/${TARBALL}.sha256")  ${TMP_DIR}/${TARBALL}" | sha256sum -c -
+
+# ── Install ───────────────────────────────────────────────────────────────────
+
+echo "==> Installing to ${INSTALL_PREFIX}..."
+TMP_EXTRACT="${TMP_DIR}/extract"
+mkdir -p "${TMP_EXTRACT}"
+tar -xJf "${TMP_DIR}/${TARBALL}" -C "${TMP_EXTRACT}" --strip-components=1
+
+sudo mkdir -p "${INSTALL_PREFIX}"
+sudo cp -a "${TMP_EXTRACT}/." "${INSTALL_PREFIX}/"
+
+# ── Done ──────────────────────────────────────────────────────────────────────
 
 echo ""
-echo "==> Done."
-node --version
-npm --version
+echo "==> Installed:"
+"${INSTALL_PREFIX}/bin/node" --version
+"${INSTALL_PREFIX}/bin/npm" --version
+echo ""
+echo "    Binary path for systemd: ${INSTALL_PREFIX}/bin/node"
+echo "    Existing system node is unchanged: $(node --version 2>/dev/null || echo '(none)')"
